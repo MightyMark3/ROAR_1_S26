@@ -7,7 +7,7 @@ def normalize_rad(rad: float):
     return rad % (2 * np.pi)
 
 class LatController:
-    def run(self, vehicle_location, vehicle_rotation, waypoints) -> float:
+    def run(self, vehicle_location, vehicle_rotation, waypoints, current_section) -> float:
         """
         Calculates the steering command using the pure pursuit algorithm.
         Adjusted to consider an averaged waypoint for smoother turns.
@@ -25,29 +25,39 @@ class LatController:
         if len(waypoints) < 1:
             return 0
 
-        # 20 weights increasing linearly
+        x_const = 0.5
+        # 20 waypoints
         num_waypoints_to_consider = min(20, len(waypoints))
-        waypoint_weights = np.linspace(0.2, 1.5, num=num_waypoints_to_consider) #originally 1-1.5
+        weights = np.zeros(num_waypoints_to_consider)
+        for i in range(num_waypoints_to_consider):
+            weights[i] = ((1+ (x_const*(i)/(num_waypoints_to_consider)) )/np.linalg.norm(vehicle_location[:2] - waypoints[i].location[:2]))
 
-        # Value each waypoint based on its weight and the distance to the vehicle
-        weighted_location = sum(
-            w.location[:2] * (waypoint_weights[i] / np.linalg.norm(vehicle_location[:2] - w.location[:2]))
-            for i, w in enumerate(waypoints[:num_waypoints_to_consider])
-        ) / sum(
-            waypoint_weights[i] / np.linalg.norm(vehicle_location[:2] - w.location[:2]) for i, w in enumerate(waypoints[:num_waypoints_to_consider])
-        )
+        weight_sum = 0;
+        for i in range(num_waypoints_to_consider):
+            weight_sum += weights[i]*waypoints[i].location[:2]
+        weight_sum /= sum(weights)
+
+        # waypoint_weights = np.linspace(0.2, 1.5, num=num_waypoints_to_consider) #originally 1-1.5
+
+        # #Value each waypoint based on its weight and the distance to the vehicle
+        # weighted_location = sum(
+        #     w.location[:2] * (waypoint_weights[i] / np.linalg.norm(vehicle_location[:2] - w.location[:2]))
+        #     for i, w in enumerate(waypoints[:num_waypoints_to_consider])
+        # ) / sum(
+        #     waypoint_weights[i] / np.linalg.norm(vehicle_location[:2] - w.location[:2]) for i, w in enumerate(waypoints[:num_waypoints_to_consider])
+        # )
 
         # temporary averaged waypoint
         avg_waypoint = roar_py_interface.RoarPyWaypoint(
-            location=np.array([*weighted_location, 0]),  # Add z=0
+            location=np.array([*weight_sum, 0]),  # Add z=0
             roll_pitch_yaw=[0, 0, 0],
             lane_width=0
         )
 
         # Calculate steering based on the averaged waypoint
-        return self.calculate_steering(vehicle_location[:2], vehicle_rotation, avg_waypoint)
+        return self.calculate_steering(vehicle_location[:2], vehicle_rotation, avg_waypoint, current_section)
 
-    def calculate_steering(self, vehicle_location, vehicle_rotation, waypoint) -> float:
+    def calculate_steering(self, vehicle_location, vehicle_rotation, waypoint, current_section) -> float:
         """
         Calculates the steering command using the pure pursuit algorithm for a single waypoint
         Args:
@@ -76,7 +86,20 @@ class LatController:
         )
 
         # Pure pursuit formula
-        steering_command = 1.51 * math.atan2(
+        steer_multiplier = 1.50
+
+        # if current_section == 1:
+        #     steer_multiplier = 1.35
+        # if current_section == 2:
+        #     steer_multpilier = 1.35
+        # if current_section == 4:
+        #     steer_multpilier = 1.20
+        # if current_section == 5:
+        #     steer_multpilier = 1.20
+        # if current_section == 6:
+        #     steer_multpilier = 1.20
+
+        steering_command = steer_multiplier * math.atan2(
             2.0 * 4.7 * math.sin(alpha) / distance_to_waypoint, 1.0
         )
 

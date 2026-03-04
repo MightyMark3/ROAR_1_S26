@@ -87,11 +87,11 @@ class ThrottleController:
         speed_excess = current_speed - speed_data.recommended_speed_now
         if current_section == 3:
             if 0 < self.brake_ticks and self.brake_ticks < 5 and speed_excess < 8 and br_count > 5:
-                throttle = 0.2
+                throttle = 0.25
         elif current_section == 4:
             if 0 < self.brake_ticks and self.brake_ticks < 5 and speed_excess < 8 and br_count > 4:
                 prev_throttle = max(0.3, self.prev_throttle[0])
-                throttle = prev_throttle + 0.03
+                throttle = prev_throttle + 0.25
         elif current_section == 6:
             if 0 < self.brake_ticks and self.brake_ticks < 3 and speed_excess < 8 and br_count > 5:
                 # prev_throttle = max(0.27, self.prev_throttle[0])
@@ -100,10 +100,10 @@ class ThrottleController:
         elif current_section == 9 and current_speed < 150:
             if 0 < self.brake_ticks and self.brake_ticks < 8 and speed_excess < 20 and br_count > 5:
                 prev_throttle = max(0.3, self.prev_throttle[0])
-                throttle = prev_throttle + 0.06
+                throttle = prev_throttle + 0.25
         elif 0 < self.brake_ticks and self.brake_ticks < 5 and speed_excess < 8 and br_count > 5:
             prev_throttle = max(0.3, self.prev_throttle[0])
-            throttle = prev_throttle + 0.03
+            throttle = prev_throttle + 0.3
 
         if self.brake_ticks > 0 and brake > 0:
             self.brake_ticks -= 1
@@ -291,10 +291,10 @@ class ThrottleController:
                         + str(percent_speed_change)
                     )
                     # print(f"light thr {throttle_to_maintain * throttle_decrease_multiple:1.2f} tick {str(self.tick_counter)}")
-                    return (1, 0.6)  # light break, while keeping throttle on.
+                    return (1, 0.6)  # light brake, while keeping throttle on.
                 else:
                     # print(f"extra light br {percent_of_max:1.2f} tick {str(self.tick_counter)}")
-                    return (1, 0.1)  # light break, while keeping throttle on.
+                    return (1, 0.1)  # light brake, while keeping throttle on.
         else:
             self.brake_ticks = 0  # done slowing down. clear brake_ticks
             # Speed up
@@ -493,7 +493,24 @@ class ThrottleController:
         if radius >= self.max_radius:
             return self.max_speed
 
+        #conservative tune good in 1st three sections
+        if current_section == 1:
+            mu = 2.9
         if current_section == 2:
+            mu = 3.35
+        if current_section == 3:
+            mu = 3.3
+        if current_section == 4:
+            mu = 2.85
+        if current_section == 5:
+            mu = 2.75
+        if current_section == 6:
+            mu = 3.3
+        if current_section == 9:
+            mu = 2.1
+        
+        #original
+        '''if current_section == 2:
             mu = 3.35
         if current_section == 3:
             mu = 3.3
@@ -502,12 +519,17 @@ class ThrottleController:
         if current_section == 6:
             mu = 3.3
         if current_section == 9:
-            mu = 2.1
+            mu = 2.1'''
+        
+        #k_vals = {0: -1, 1: 1, 2:0.9, 3:1, 4:1, 5:1, 6:1.4, 7:1.4, 8:1.4, 9:1}
+        
+        #To test without k:
+        k_vals = {0: 0, 1: 0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
 
-        target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
+        target_speed = math.sqrt(mu * 9.81 * radius) * 3.6 + k_vals[current_section]
 
         return max(
-            20, min(target_speed, self.max_speed)
+            60, min(target_speed, self.max_speed)
         )  # clamp between 20 and max_speed
 
     def print_speed(

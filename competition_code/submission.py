@@ -11,7 +11,8 @@ from typing import List, Tuple, Dict, Optional
 import math
 import numpy as np
 import roar_py_interface
-from LateralController import LatController
+#from LateralController import LatController
+from LateralExperimental import LatController
 from ThrottleController import ThrottleController
 from WaypointLine import WaypointLine
 from SectionStats import SectionStats
@@ -215,9 +216,15 @@ class RoarCompetitionSolution:
             waypoint_to_follow_location = snap_to_line_location
 
         # Pure pursuit controller to steer the vehicle
-        steer_control, steer_debug = self.lat_controller.run(
-            vehicle_location, vehicle_rotation, waypoint_to_follow_location, self.current_waypoint_idx
+        # steer_control, steer_debug = self.lat_controller.run(
+        #     vehicle_location, vehicle_rotation, waypoint_to_follow_location, self.current_waypoint_idx
+        # )
+
+        #for testing George steering
+        steer_control = self.lat_controller.run(
+            vehicle_location, vehicle_rotation, waypoint_to_follow, self.current_section
         )
+        steer_debug = 0.0
 
         # Custom controller to control the vehicle's speed
         waypoints_for_throttle = (self.maneuverable_waypoints * 2)[
