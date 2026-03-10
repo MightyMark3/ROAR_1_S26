@@ -49,6 +49,7 @@ class ThrottleController:
         self.prev_throttle = deque([0]*20, maxlen=20)
         self.prev_locations = deque(maxlen=20)
         self.current_location_idx = 0
+        self.current_section = 0
         self.location_and_radius = self.load_location_and_radius_data(
             f"{os.path.dirname(__file__)}\\waypoints\\location_with_radius")
 
@@ -60,6 +61,7 @@ class ThrottleController:
         self, waypoints, current_location, current_speed, current_section, additional_waypoints
     ) -> Tuple[float, float, int]:
         self.tick_counter += 1
+        self.current_section = current_section
         self.current_location_idx = new_location_index(
             current_location, self.current_location_idx, self.location_and_radius)
 
@@ -237,6 +239,8 @@ class ThrottleController:
                         + " brake: counter "
                         + str(self.brake_ticks)
                     )
+                    if self.current_section not in [3, 4]:
+                        return 0, 1 - 0.1*max(4-self.brake_ticks, 0)
                     return -1, 1
 
                 # if speed is not decreasing fast, hit the brake.
@@ -572,10 +576,10 @@ class ThrottleController:
             distances[ind] = self.target_distance[ind+3]
             radius[ind] = self.get_radius_from_locations(l1, l2, l3)
 
-        break_early_d = 3
+        brake_early_d = 3
         for i in range(len(distances)):
-            if distances[i] > break_early_d:
-                distances[i] -= break_early_d
+            if distances[i] > brake_early_d:
+                distances[i] -= brake_early_d
 
         debug_str = ""
         for ind in range(num_radiuses):
@@ -649,20 +653,21 @@ class ThrottleController:
             max_speed = target_speed
             return SpeedData(distance, current_speed, target_speed, max_speed, name, r)
 
-        a = 170
+        #new values are a are all 30 more than old ones
+        a = 200  
         if current_speed > 230:
-            a = 200
+            a = 230
         elif current_speed > 210:
-            a = 185
+            a = 215
         ticks_without_speed_decrease = 6
         if current_section in [3]:
             ticks_without_speed_decrease = 26
 
-        break_dist = distance - (ticks_without_speed_decrease / 20) * (current_speed / 3.6)
-        if break_dist <= 0:
+        brake_dist = distance - (ticks_without_speed_decrease / 20) * (current_speed / 3.6)
+        if brake_dist <= 0:
             max_speed = target_speed
         else:
-            max_speed = math.sqrt(target_speed**2 + 2 * a * break_dist)
+            max_speed = math.sqrt(target_speed**2 + 2 * a * brake_dist)
         return SpeedData(distance, current_speed, target_speed, max_speed, name, r)
 
     def get_target_speed_new(self, radius: float, current_section: int, current_location):
