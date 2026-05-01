@@ -239,7 +239,12 @@ class ThrottleController:
                         + " brake: counter "
                         + str(self.brake_ticks)
                     )
-                    if self.current_section not in [3, 4]:
+                    
+                    # if self.current_section in [0,2]:
+                    #     return 0, 1 - 0.05*max(4-self.brake_ticks, 0)
+                    # if self.current_section in [5, 6]:
+                    #     return 0, 1 - 0.3*max(5-self.brake_ticks, 0)
+                    if self.current_section not in [2, 3, 4, 0]:
                         return 0, 1 - 0.1*max(4-self.brake_ticks, 0)
                     return -1, 1
 
